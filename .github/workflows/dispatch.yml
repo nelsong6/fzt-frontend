@@ -1,0 +1,22 @@
+name: Dependency Update
+
+on:
+  repository_dispatch:
+    types: [fzt-updated]
+
+# The called reusable workflow declares contents:write + actions:write. Without
+# these granted on the caller, the token falls back to the repo default ('read')
+# and the workflow startup_failures instantly on every dispatch.
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: dependency-update
+  cancel-in-progress: false
+
+jobs:
+  update:
+    uses: nelsong6/pipeline-templates/.github/workflows/go-dependency-update-template.yml@main
+    with:
+      modules: github.com/nelsong6/fzt
