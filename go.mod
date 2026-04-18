@@ -3,7 +3,7 @@ module github.com/nelsong6/fzt-frontend
 go 1.26.1
 
 require (
-	github.com/nelsong6/fzt v0.2.56
+	github.com/nelsong6/fzt v0.2.57
 	github.com/zalando/go-keyring v0.2.8
 )
 
