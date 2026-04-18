@@ -410,12 +410,13 @@ func HandleCommandAction(s *core.State, item core.Item) string {
 			}
 			s.JWTSecret = secret
 		}
-		_, ver, err := SyncMenu(s.ConfigDir, secret)
+		count, ver, err := SyncMenu(s.ConfigDir, secret)
 		if err != nil {
 			s.SetTitle(err.Error(), 2)
 			return ""
 		}
 		s.MenuVersion = ver
+		s.SetTitle(fmt.Sprintf("synced %d items @ v%d", count, ver), 1)
 		return "synced"
 	case "add-after":
 		s.EditMode = "add-after"
