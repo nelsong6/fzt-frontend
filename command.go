@@ -348,6 +348,15 @@ func HandleCommandAction(s *core.State, item core.Item) string {
 			s.SyncTimerShown = true
 		}
 		return ""
+	case "toggle-states":
+		s.StatesBannerOn = !s.StatesBannerOn
+		if s.StatesBannerOn {
+			s.SetTitle("states inspector on — actions suppressed", 1)
+		} else {
+			s.LastActionPreview = ""
+			s.SetTitle("states inspector off", 0)
+		}
+		return ""
 	case "validate":
 		HandleValidate(s)
 		return ""
