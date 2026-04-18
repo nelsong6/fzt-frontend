@@ -15,6 +15,11 @@ on:
     paths-ignore:
       - 'go.mod'
       - 'go.sum'
+  # Manual recovery: fire the release path without advancing HEAD. Useful
+  # when a cascade stranded code on main without a tag and we need to
+  # re-release the existing HEAD. The template's skip guard correctly
+  # no-ops if the latest release is already at HEAD.
+  workflow_dispatch:
 
 # Shared with dispatch.yml: release-cutting is serialized, preventing two
 # workflows from computing the same patch number simultaneously.
