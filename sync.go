@@ -57,45 +57,6 @@ func MintJWT(secret string, claims IdentityClaims) string {
 	return msg + "." + sig
 }
 
-// FetchBookmarks GETs bookmarks from the API and returns the raw response.
-func FetchBookmarks(token string) ([]interface{}, string, error) {
-	req, err := http.NewRequest("GET", APIBase+"/api/bookmarks", nil)
-	if err != nil {
-		return nil, "", err
-	}
-	req.Header.Set("Authorization", "Bearer "+token)
-
-	client := &http.Client{Timeout: 10 * time.Second}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, "", err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != 200 {
-		return nil, "", fmt.Errorf("API returned %d", resp.StatusCode)
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, "", err
-	}
-
-	var result struct {
-		Bookmarks []interface{} `json:"bookmarks"`
-		UpdatedAt *string       `json:"updatedAt"`
-	}
-	if err := json.Unmarshal(body, &result); err != nil {
-		return nil, "", err
-	}
-
-	updatedAt := ""
-	if result.UpdatedAt != nil {
-		updatedAt = *result.UpdatedAt
-	}
-	return result.Bookmarks, updatedAt, nil
-}
-
 // StripMetadata removes keys starting with "_" from bookmark objects recursively.
 func StripMetadata(items []interface{}) []interface{} {
 	var out []interface{}
