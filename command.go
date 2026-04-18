@@ -317,14 +317,11 @@ func HandleCommandAction(s *core.State, item core.Item) string {
 
 	switch action {
 	case "version":
-		// Toggle: if title already shows this version, clear it; otherwise set it
+		// Emit the version as a status. Repeats pulse (SetTitle detects repeat).
+		// Previously toggled between show/hide — removed: selecting the item
+		// should just re-emit the status, not hide it.
 		if len(item.Fields) >= 2 && item.Fields[1] != "" {
-			ver := item.Fields[1]
-			if s.TitleOverride == ver {
-				s.ClearTitle()
-			} else {
-				s.SetTitle(ver, 1)
-			}
+			s.SetTitle(item.Fields[1], 1)
 		}
 		return ""
 	case "on":
