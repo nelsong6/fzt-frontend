@@ -143,7 +143,6 @@ func buildCoreLevelCommandTree(registry []string, ctlFolderIdx int, versionIdx i
 		condition string
 	}
 	coreCmds := []coreCmd{
-		{[]string{"update", "Update fzt to latest release"}, "update", "terminal"},
 		{[]string{"updatetimer", "Show time to next sync check"}, "updatetimer", ""},
 		{[]string{"validate", "Validate credential store"}, "validate", ""},
 	}
@@ -214,7 +213,6 @@ func buildTwoLevelCommandTree(s *core.State, ctlFolderIdx int, feIdx int, coreId
 		condition string
 	}
 	coreCmds := []coreCmd{
-		{[]string{"update", "Update fzt to latest release"}, "update", "terminal"},
 		{[]string{"updatetimer", "Show time to next sync check"}, "updatetimer", ""},
 		{[]string{"validate", "Validate credential store"}, "validate", ""},
 	}
@@ -539,5 +537,14 @@ func ApplyConfig(s *core.State, cfg core.Config) {
 	}
 	if cfg.InitialDisplay != "" {
 		s.IdentityLabel = cfg.InitialDisplay
+	}
+	if cfg.UpdateRepo != "" {
+		s.UpdateRepo = cfg.UpdateRepo
+	}
+	if cfg.UpdateAssetPrefix != "" {
+		s.UpdateAssetPrefix = cfg.UpdateAssetPrefix
+	}
+	if cfg.UpdateBinaryName != "" {
+		s.UpdateBinaryName = cfg.UpdateBinaryName
 	}
 }
