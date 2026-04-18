@@ -25,22 +25,15 @@ type IdentityClaims struct {
 	Role  string `json:"role"`
 }
 
-// LoadIdentityClaims reads the identity name and claims from configDir.
+// LoadIdentityClaims reads the loaded identity name from `.identity` in
+// configDir and looks up its claims from the baked-in map in claims.go.
+// identities.json is no longer used — claims are source-controlled Go code.
 func LoadIdentityClaims(configDir string) (string, IdentityClaims, error) {
 	identityName, err := ReadTrimmedFile(filepath.Join(configDir, ".identity"))
 	if err != nil {
 		return "", IdentityClaims{}, fmt.Errorf("no identity loaded — use load first")
 	}
-
-	data, err := os.ReadFile(filepath.Join(configDir, "identities.json"))
-	if err != nil {
-		return "", IdentityClaims{}, fmt.Errorf("identities.json not found")
-	}
-	var all map[string]IdentityClaims
-	if err := json.Unmarshal(data, &all); err != nil {
-		return "", IdentityClaims{}, fmt.Errorf("invalid identities.json: %w", err)
-	}
-	c, ok := all[identityName]
+	c, ok := identityClaims[identityName]
 	if !ok {
 		return "", IdentityClaims{}, fmt.Errorf("unknown identity: %s", identityName)
 	}
