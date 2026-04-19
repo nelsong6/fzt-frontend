@@ -2,12 +2,13 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: fzt-frontend
 resources:
-  - serviceaccount.yaml
-  - deployment.yaml
-  - service.yaml
-  - certificate.yaml
-  - xlistenerset.yaml
-  - httproute.yaml
+- serviceaccount.yaml
+- deployment.yaml
+- service.yaml
+- certificate.yaml
+- xlistenerset.yaml
+- httproute.yaml
 images:
-  - name: romainecr.azurecr.io/fzt-frontend
-    newTag: placeholder
+- name: romainecr.azurecr.io/fzt-frontend
+  newName: romainecr.azurecr.io/fzt-frontend
+  newTag: 1bd3a0d
