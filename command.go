@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	"github.com/nelsong6/fzt/core"
@@ -64,11 +63,6 @@ func buildVersionRegistry(s *core.State, coreVersion string) {
 		}
 		s.VersionRegistry = append(s.VersionRegistry, s.FrontendName+" "+feVer)
 		s.VersionRegistry = append(s.VersionRegistry, "fzt "+coreVerStr)
-		identity := s.IdentityLabel
-		if identity == "" {
-			identity = "(none)"
-		}
-		s.VersionRegistry = append(s.VersionRegistry, identity)
 	} else {
 		s.VersionRegistry = append(s.VersionRegistry, "fzt "+coreVerStr)
 	}
@@ -99,7 +93,9 @@ func InjectCommandFolder(s *core.State, coreVersion string) {
 		coreVerStr = "ERROR: use go run ./build"
 	}
 
-	// Build version registry — each entry gets an index that "on" buttons reference
+	// Build version registry — each entry gets an index consumed by `version`
+	// palette leaves. Identity is no longer appended here; `:whoami` emits it
+	// as a one-shot status via SetTitle rather than as a persistent display.
 	s.VersionRegistry = nil
 	if hasFrontend {
 		feLabel := s.FrontendName
@@ -109,11 +105,6 @@ func InjectCommandFolder(s *core.State, coreVersion string) {
 		}
 		s.VersionRegistry = append(s.VersionRegistry, feLabel+" "+feVer) // index 0: frontend
 		s.VersionRegistry = append(s.VersionRegistry, "fzt "+coreVerStr) // index 1: engine
-		identity := s.IdentityLabel
-		if identity == "" {
-			identity = "(none)"
-		}
-		s.VersionRegistry = append(s.VersionRegistry, identity) // index 2: identity
 	} else {
 		s.VersionRegistry = append(s.VersionRegistry, "fzt "+coreVerStr) // index 0: engine
 	}
@@ -245,7 +236,7 @@ func buildCoreLevelCommandTree(registry []string, ctlFolderIdx int, versionIdx i
 //
 // Index allocation: the function pre-allocates contiguous index ranges for all items
 // before building the slice. Starting from ctlFolderIdx+1, it reserves indices for:
-// version (1), whoami folder (3), each FrontendCommand + its Children,
+// version (1), whoami leaf (1), each FrontendCommand + its Children,
 // and the core subfolder. Items must be appended in the same order as indices were reserved.
 func buildTwoLevelCommandTree(s *core.State, ctlFolderIdx int, feIdx int, coreIdx int, envTags []string) []core.Item {
 	idx := ctlFolderIdx + 1
@@ -256,13 +247,9 @@ func buildTwoLevelCommandTree(s *core.State, ctlFolderIdx int, feIdx int, coreId
 	ctlChildren = append(ctlChildren, feVersionIdx)
 	idx++
 
-	// whoami folder
-	identityFolderIdx := idx
-	ctlChildren = append(ctlChildren, identityFolderIdx)
-	idx++
-	identityOnIdx := idx
-	idx++
-	identityOffIdx := idx
+	// whoami leaf — emits identity as one-shot status (no persistent display)
+	whoamiIdx := idx
+	ctlChildren = append(ctlChildren, whoamiIdx)
 	idx++
 
 	for _, cmd := range s.FrontendCommands {
@@ -315,14 +302,10 @@ func buildTwoLevelCommandTree(s *core.State, ctlFolderIdx int, feIdx int, coreId
 		ParentIdx: ctlFolderIdx, Action: cmdAction("version"), PropertyOf: -1,
 	})
 
-	identityIdxStr := fmt.Sprintf("%d", len(s.VersionRegistry)-1)
 	items = append(items, core.Item{
-		Fields: []string{"whoami", "Show/hide loaded identity"}, Depth: 1,
-		HasChildren: true, ParentIdx: ctlFolderIdx, PropertyOf: -1,
-		Children: []int{identityOnIdx, identityOffIdx},
+		Fields: []string{"whoami", "Emit loaded identity as status"}, Depth: 1,
+		ParentIdx: ctlFolderIdx, Action: cmdAction("whoami"), PropertyOf: -1,
 	})
-	items = append(items, core.Item{Fields: []string{"on", "Show identity", identityIdxStr}, Depth: 2, ParentIdx: identityFolderIdx, Action: cmdAction("on"), PropertyOf: -1})
-	items = append(items, core.Item{Fields: []string{"off", "Hide identity"}, Depth: 2, ParentIdx: identityFolderIdx, Action: cmdAction("off"), PropertyOf: -1})
 
 	for _, cmd := range s.FrontendCommands {
 		cmdIdx := ctlFolderIdx + len(items)
@@ -398,17 +381,14 @@ func HandleCommandAction(s *core.State, item core.Item) string {
 			s.SetTitle(item.Fields[1], 1)
 		}
 		return ""
-	case "on":
-		// "on" items store their VersionRegistry index in Fields[2] (used by whoami).
-		if len(item.Fields) >= 3 {
-			idx, err := strconv.Atoi(item.Fields[2])
-			if err == nil && idx >= 0 && idx < len(s.VersionRegistry) {
-				s.VersionDisplay = s.VersionRegistry[idx]
-			}
+	case "whoami":
+		// Emit the loaded identity as a one-shot status — same pattern as
+		// `version`. No persistent display; gets wiped by the next status.
+		label := s.IdentityLabel
+		if label == "" {
+			label = "(no identity loaded)"
 		}
-		return ""
-	case "off":
-		s.VersionDisplay = ""
+		s.SetTitle(label, 1)
 		return ""
 	case "updatetimer":
 		if s.SyncTimerShown {
