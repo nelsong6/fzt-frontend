@@ -223,10 +223,12 @@ func buildCoreLevelCommandTree(registry []string, ctlFolderIdx int, versionIdx i
 		})
 	}
 
-	// Prepend the : folder itself
+	// Prepend the : folder itself. Visible in the root tree — discoverability
+	// over stealth (users including future-you can find the palette without
+	// tribal knowledge of the `:` gesture).
 	ctlFolder := core.Item{
-		Fields: []string{":"}, Depth: 0, HasChildren: true,
-		ParentIdx: -1, Children: ctlChildren, Hidden: true, PropertyOf: -1,
+		Fields: []string{":", "commands"}, Depth: 0, HasChildren: true,
+		ParentIdx: -1, Children: ctlChildren, PropertyOf: -1,
 	}
 	return append([]core.Item{ctlFolder}, items...)
 }
@@ -288,8 +290,8 @@ func buildTwoLevelCommandTree(s *core.State, ctlFolderIdx int, feIdx int, coreId
 	var items []core.Item
 
 	items = append(items, core.Item{
-		Fields: []string{":"}, Depth: 0, HasChildren: true,
-		ParentIdx: -1, Children: ctlChildren, Hidden: true, PropertyOf: -1,
+		Fields: []string{":", "commands"}, Depth: 0, HasChildren: true,
+		ParentIdx: -1, Children: ctlChildren, PropertyOf: -1,
 	})
 
 	// Frontend version toggle
