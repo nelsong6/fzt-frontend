@@ -1,0 +1,29 @@
+{
+  "name": "@nelsong6/fzt-frontend-backend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Backend for fzt-frontend.romaine.life — hosts /fzt/tree/:id, consumed by my-homepage web and fzt-automate CLI",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@azure/app-configuration": "^1.11.0",
+    "@azure/cosmos": "^4.0.0",
+    "@azure/identity": "^4.0.0",
+    "@azure/keyvault-secrets": "^4.11.1",
+    "@nelsong6/fzt-frontend-routes": "file:../packages/routes",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "helmet": "^8.1.0",
+    "jsonwebtoken": "^9.0.3",
+    "morgan": "^1.10.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

@@ -1,0 +1,16 @@
+.git
+.github
+tofu
+k8s
+node_modules
+backend/node_modules
+packages/routes/node_modules
+# Go sources aren't needed in the Node runtime image
+*.go
+go.mod
+go.sum
+backend/.env
+backend/.env.local
+*.md
+.gitignore
+.npmrc
