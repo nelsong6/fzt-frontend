@@ -11,4 +11,4 @@ resources:
 images:
 - name: romainecr.azurecr.io/fzt-frontend
   newName: romainecr.azurecr.io/fzt-frontend
-  newTag: 1bd3a0d
+  newTag: 16b2f94
