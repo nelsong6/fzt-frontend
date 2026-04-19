@@ -86,14 +86,11 @@ func hasEnvTag(tags []string, tag string) bool {
 func InjectCommandFolder(s *core.State, coreVersion string) {
 	ctx := s.TopCtx()
 
-	// Check if palette already exists in loaded data (data-driven mode)
-	for _, item := range ctx.AllItems {
-		if len(item.Fields) > 0 && item.Fields[0] == ":" && item.Hidden {
-			// Palette loaded from cache — skip injection, just build version registry
-			buildVersionRegistry(s, coreVersion)
-			return
-		}
-	}
+	// Strip any stale `:` palette carried in by loaded data. Older clients
+	// serialized the client-injected palette back to the cloud menu on save
+	// (before SerializeTree learned to skip Injected items). Re-inject fresh
+	// below so the in-RAM palette always reflects current client code.
+	stripClientPalette(ctx)
 
 	hasFrontend := s.FrontendName != ""
 
@@ -131,8 +128,65 @@ func InjectCommandFolder(s *core.State, coreVersion string) {
 		items = buildCoreLevelCommandTree(s.VersionRegistry, ctlFolderIdx, 0, s.EnvTags) // coreIdx=0
 	}
 
+	// Tag every injected item so SerializeTree skips them on :save. The
+	// cloud menu only ever receives user data; the palette is always
+	// client-reconstructed.
+	for i := range items {
+		items[i].Injected = true
+	}
 	ctx.AllItems = append(ctx.AllItems, items...)
 	ctx.Items = core.RootItemsOf(ctx.AllItems)
+}
+
+// stripClientPalette removes any top-level hidden `:` folder (and its whole
+// subtree) from the loaded tree, rebuilding the index space so ParentIdx and
+// Children arrays stay consistent. Called from InjectCommandFolder before
+// fresh injection.
+func stripClientPalette(ctx *core.TreeContext) {
+	var removed map[int]bool
+	for i, item := range ctx.AllItems {
+		if item.Depth == 0 && item.Hidden && len(item.Fields) > 0 && item.Fields[0] == ":" {
+			if removed == nil {
+				removed = make(map[int]bool)
+			}
+			collectSubtree(ctx.AllItems, i, removed)
+		}
+	}
+	if len(removed) == 0 {
+		return
+	}
+
+	oldToNew := make([]int, len(ctx.AllItems))
+	kept := make([]core.Item, 0, len(ctx.AllItems)-len(removed))
+	for i, item := range ctx.AllItems {
+		if removed[i] {
+			oldToNew[i] = -1
+			continue
+		}
+		oldToNew[i] = len(kept)
+		kept = append(kept, item)
+	}
+	for i := range kept {
+		if kept[i].ParentIdx >= 0 {
+			kept[i].ParentIdx = oldToNew[kept[i].ParentIdx]
+		}
+		var newChildren []int
+		for _, c := range kept[i].Children {
+			if nc := oldToNew[c]; nc >= 0 {
+				newChildren = append(newChildren, nc)
+			}
+		}
+		kept[i].Children = newChildren
+	}
+	ctx.AllItems = kept
+	ctx.Items = core.RootItemsOf(kept)
+}
+
+func collectSubtree(items []core.Item, idx int, out map[int]bool) {
+	out[idx] = true
+	for _, c := range items[idx].Children {
+		collectSubtree(items, c, out)
+	}
 }
 
 // buildCoreLevelCommandTree builds `:` → core commands directly (no frontend layer).
