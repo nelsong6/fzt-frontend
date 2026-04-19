@@ -1,24 +1,10 @@
 name: Release
 
-# Fires on direct pushes to main (e.g. Nelson edits a Go file). Calls the
-# shared release-and-dispatch template, which cuts a tag at current HEAD,
-# dispatches downstream consumers, and no-ops if HEAD is already released
-# (guard against the race with dispatch.yml's template-internal release).
-#
-# paths-ignore on go.mod/go.sum prevents dispatch.yml's own dep-bump
-# commits (which only touch those files) from retriggering this workflow —
-# they already get a release via dispatch.yml's internal release job.
+# Auto-trigger disabled — Claude-driven CI. Run manually via
+# `gh workflow run release.yml -R nelsong6/fzt-frontend` when ready
+# to cut a tag and cascade downstream.
 
 on:
-  push:
-    branches: [main]
-    paths-ignore:
-      - 'go.mod'
-      - 'go.sum'
-  # Manual recovery: fire the release path without advancing HEAD. Useful
-  # when a cascade stranded code on main without a tag and we need to
-  # re-release the existing HEAD. The template's skip guard correctly
-  # no-ops if the latest release is already at HEAD.
   workflow_dispatch:
 
 # Shared with dispatch.yml: release-cutting is serialized, preventing two
