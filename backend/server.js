@@ -9,7 +9,7 @@ import morgan from 'morgan';
 import cors from 'cors';
 import { CosmosClient } from '@azure/cosmos';
 import { DefaultAzureCredential } from '@azure/identity';
-import { createFztFrontendRoutes } from '@nelsong6/fzt-frontend-routes';
+import { createFztFrontendRoutes } from './routes/index.js';
 import { createRequireAuth } from './auth.js';
 import { fetchConfig } from './config.js';
 
