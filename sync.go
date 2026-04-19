@@ -15,7 +15,7 @@ import (
 	"time"
 )
 
-const APIBase = "https://api.romaine.life/at"
+const APIBase = "https://api.romaine.life/fzt"
 
 // IdentityClaims holds JWT payload claims for an identity.
 type IdentityClaims struct {
@@ -84,10 +84,11 @@ func StripMetadata(items []interface{}) []interface{} {
 	return out
 }
 
-// FetchMenu GETs the full menu tree from the API.
-// Returns (menu, version, updatedAt, error).
-func FetchMenu(token string) ([]interface{}, int, string, error) {
-	req, err := http.NewRequest("GET", APIBase+"/api/menu", nil)
+// FetchTree GETs a tree from the /fzt/tree/:ns/:name endpoint.
+// Returns (tree, version, updatedAt, error).
+func FetchTree(token, namespace, name string) ([]interface{}, int, string, error) {
+	url := fmt.Sprintf("%s/tree/%s/%s", APIBase, namespace, name)
+	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, 0, "", err
 	}
@@ -110,7 +111,7 @@ func FetchMenu(token string) ([]interface{}, int, string, error) {
 	}
 
 	var result struct {
-		Menu      []interface{} `json:"menu"`
+		Tree      []interface{} `json:"tree"`
 		Version   int           `json:"version"`
 		UpdatedAt *string       `json:"updatedAt"`
 	}
@@ -122,61 +123,23 @@ func FetchMenu(token string) ([]interface{}, int, string, error) {
 	if result.UpdatedAt != nil {
 		updatedAt = *result.UpdatedAt
 	}
-	return result.Menu, result.Version, updatedAt, nil
+	return result.Tree, result.Version, updatedAt, nil
 }
 
-// SyncMenu fetches the full menu from the API and writes the cache file as YAML.
-// Returns (item count, version number, error).
-func SyncMenu(configDir, secret string) (int, int, error) {
-	_, claims, err := LoadIdentityClaims(configDir)
-	if err != nil {
-		return 0, 0, err
-	}
-
-	token := MintJWT(secret, claims)
-	menu, version, _, err := FetchMenu(token)
-	if err != nil {
-		return 0, 0, fmt.Errorf("API error: %w", err)
-	}
-
-	data, err := MenuToYAML(menu)
-	if err != nil {
-		return 0, 0, err
-	}
-
-	cacheFile := filepath.Join(configDir, "menu-cache.yaml")
-	if err := os.WriteFile(cacheFile, data, 0644); err != nil {
-		return 0, 0, fmt.Errorf("failed to write cache: %w", err)
-	}
-
-	// Persist version number for next launch
-	versionFile := filepath.Join(configDir, ".menu-version")
-	os.WriteFile(versionFile, []byte(fmt.Sprintf("%d", version)), 0644)
-
-	return len(menu), version, nil
-}
-
-// SaveMenu PUTs the menu tree to the API and updates the local cache.
+// SaveTree PUTs a tree to the /fzt/tree/:ns/:name endpoint.
 // Returns the new version number, or an error.
-func SaveMenu(configDir, secret string, menu []interface{}, baseVersion int) (int, error) {
-	_, claims, err := LoadIdentityClaims(configDir)
-	if err != nil {
-		return 0, err
-	}
-
-	token := MintJWT(secret, claims)
-
+func SaveTree(token, namespace, name string, tree []interface{}, baseVersion int) (int, error) {
+	url := fmt.Sprintf("%s/tree/%s/%s", APIBase, namespace, name)
 	body := map[string]interface{}{
-		"menu":        menu,
+		"tree":        tree,
 		"baseVersion": baseVersion,
 	}
-
 	bodyBytes, err := json.Marshal(body)
 	if err != nil {
 		return 0, err
 	}
 
-	req, err := http.NewRequest("PUT", APIBase+"/api/menu", bytes.NewReader(bodyBytes))
+	req, err := http.NewRequest("PUT", url, bytes.NewReader(bodyBytes))
 	if err != nil {
 		return 0, err
 	}
@@ -208,20 +171,65 @@ func SaveMenu(configDir, secret string, menu []interface{}, baseVersion int) (in
 	if err := json.Unmarshal(respBody, &result); err != nil {
 		return 0, err
 	}
+	return result.Version, nil
+}
 
-	// Write local cache from the same data
+// SyncMenu fetches the caller's menu tree from the API and writes the cache
+// file as YAML. Thin wrapper over FetchTree(ns=claims.Sub, name="menu").
+// Returns (item count, version number, error).
+func SyncMenu(configDir, secret string) (int, int, error) {
+	_, claims, err := LoadIdentityClaims(configDir)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	token := MintJWT(secret, claims)
+	menu, version, _, err := FetchTree(token, claims.Sub, "menu")
+	if err != nil {
+		return 0, 0, fmt.Errorf("API error: %w", err)
+	}
+
 	data, err := MenuToYAML(menu)
 	if err != nil {
-		return result.Version, nil // saved to API but cache write failed — non-fatal
+		return 0, 0, err
+	}
+
+	cacheFile := filepath.Join(configDir, "menu-cache.yaml")
+	if err := os.WriteFile(cacheFile, data, 0644); err != nil {
+		return 0, 0, fmt.Errorf("failed to write cache: %w", err)
+	}
+
+	versionFile := filepath.Join(configDir, ".menu-version")
+	os.WriteFile(versionFile, []byte(fmt.Sprintf("%d", version)), 0644)
+
+	return len(menu), version, nil
+}
+
+// SaveMenu PUTs the caller's menu tree and updates the local cache. Thin
+// wrapper over SaveTree(ns=claims.Sub, name="menu"). Returns the new version.
+func SaveMenu(configDir, secret string, menu []interface{}, baseVersion int) (int, error) {
+	_, claims, err := LoadIdentityClaims(configDir)
+	if err != nil {
+		return 0, err
+	}
+
+	token := MintJWT(secret, claims)
+	version, err := SaveTree(token, claims.Sub, "menu", menu, baseVersion)
+	if err != nil {
+		return 0, err
+	}
+
+	data, err := MenuToYAML(menu)
+	if err != nil {
+		return version, nil // saved to API but cache write failed — non-fatal
 	}
 	cacheFile := filepath.Join(configDir, "menu-cache.yaml")
 	os.WriteFile(cacheFile, data, 0644)
 
-	// Persist version number for next launch
 	versionFile := filepath.Join(configDir, ".menu-version")
-	os.WriteFile(versionFile, []byte(fmt.Sprintf("%d", result.Version)), 0644)
+	os.WriteFile(versionFile, []byte(fmt.Sprintf("%d", version)), 0644)
 
-	return result.Version, nil
+	return version, nil
 }
 
 // MenuToYAML converts the API menu response (JSON objects) to YAML format
@@ -302,7 +310,7 @@ func CheckBookmarkStaleness(configDir string, secret string) bool {
 	}
 
 	token := MintJWT(secret, claims)
-	_, _, updatedAt, err := FetchMenu(token)
+	_, _, updatedAt, err := FetchTree(token, claims.Sub, "menu")
 	if err != nil {
 		return false
 	}
