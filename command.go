@@ -180,6 +180,59 @@ func collectSubtree(items []core.Item, idx int, out map[int]bool) {
 	}
 }
 
+// helpEntries returns the static key → description table for the `:help/`
+// palette subfolder. Each entry becomes a tree item with the key symbol as
+// its name and the long-form explanation as its description. Consumed by
+// the `?` help-mode lookup in core, and by users who manually scope into
+// `:help` to browse.
+func helpEntries() [][2]string {
+	return [][2]string{
+		{"`", "enter normal mode (cursor on tree)"},
+		{"/", "return to search mode; query preserved"},
+		{"h", "normal mode: navigate left"},
+		{"j", "normal mode: navigate down"},
+		{"k", "normal mode: navigate up"},
+		{"l", "normal mode: navigate right"},
+		{"enter", "select leaf / push scope into folder / commit edit"},
+		{"shift+enter", "universal confirm-select; in edit modes, confirms the edit"},
+		{"backspace", "delete last query char; in normal mode chops query + returns to search"},
+		{"shift+backspace", "reset navigation to home (pop all scope)"},
+		{"esc", "clear query → pop scope → quit (cascade)"},
+		{"tab", "autocomplete top match; on folder, push scope"},
+		{"home", "move query cursor to start"},
+		{"end", "move query cursor to end"},
+		{"space", "on folder, push scope (same as enter on folder)"},
+		{"?", "arm help mode — next keypress jumps to that key's help entry"},
+		{":", "scope into the commands palette"},
+	}
+}
+
+// buildHelpSubfolder appends the help subfolder + its children to items.
+// Returns the updated items slice and the next available index.
+// helpFolderIdx is the index the help folder will occupy in ctx.AllItems.
+// parentIdx is the index of its parent (the `:` folder). depth is the tree
+// depth for the help folder itself (children are depth+1).
+func buildHelpSubfolder(items []core.Item, helpFolderIdx, parentIdx, depth int) ([]core.Item, []int) {
+	entries := helpEntries()
+	childIdxs := make([]int, len(entries))
+	for i := range entries {
+		childIdxs[i] = helpFolderIdx + 1 + i
+	}
+	items = append(items, core.Item{
+		Fields: []string{"help", "lookup what each key does"}, Depth: depth,
+		HasChildren: true, ParentIdx: parentIdx, Children: childIdxs, PropertyOf: -1,
+	})
+	for _, e := range entries {
+		items = append(items, core.Item{
+			Fields: []string{e[0], e[1]}, Depth: depth + 1,
+			ParentIdx: helpFolderIdx,
+			Action:    cmdAction("help-entry"),
+			PropertyOf: -1,
+		})
+	}
+	return items, childIdxs
+}
+
 // buildCoreLevelCommandTree builds `:` → core commands directly (no frontend layer).
 // versionIdx is the index into State.VersionRegistry for this level's version string.
 func buildCoreLevelCommandTree(registry []string, ctlFolderIdx int, versionIdx int, envTags []string) []core.Item {
@@ -222,6 +275,12 @@ func buildCoreLevelCommandTree(registry []string, ctlFolderIdx int, versionIdx i
 			Action: cmdAction(cmd.action), DisplayCondition: cmd.condition, PropertyOf: -1,
 		})
 	}
+
+	// Help subfolder — key → description lookup. Child of the `:` folder.
+	helpFolderIdx := idx
+	ctlChildren = append(ctlChildren, helpFolderIdx)
+	items, _ = buildHelpSubfolder(items, helpFolderIdx, ctlFolderIdx, 1)
+	idx = helpFolderIdx + 1 + len(helpEntries())
 
 	// Prepend the : folder itself. Visible in the root tree — discoverability
 	// over stealth (users including future-you can find the palette without
@@ -286,6 +345,12 @@ func buildTwoLevelCommandTree(s *core.State, ctlFolderIdx int, feIdx int, coreId
 		coreSubChildren = append(coreSubChildren, idx)
 		idx++
 	}
+
+	// Help subfolder — reserve indices for folder + one entry per helpEntries().
+	helpFolderIdx := idx
+	ctlChildren = append(ctlChildren, helpFolderIdx)
+	idx++
+	idx += len(helpEntries())
 
 	var items []core.Item
 
@@ -355,6 +420,10 @@ func buildTwoLevelCommandTree(s *core.State, ctlFolderIdx int, feIdx int, coreId
 			Action: cmdAction(cmd.action), DisplayCondition: cmd.condition, PropertyOf: -1,
 		})
 	}
+
+	// Help subfolder + its children — appended in the index range reserved
+	// above (helpFolderIdx..helpFolderIdx+len(helpEntries())).
+	items, _ = buildHelpSubfolder(items, helpFolderIdx, ctlFolderIdx, 1)
 
 	return items
 }
@@ -521,6 +590,15 @@ func HandleCommandAction(s *core.State, item core.Item) string {
 		return ""
 	case "update":
 		return "update"
+	case "help-entry":
+		// Help entries carry their long-form description in Fields[1]. On
+		// select, echo it to the title bar so the user gets a visible
+		// confirmation that Enter was recognized (the description is also
+		// always visible in the row's description column).
+		if len(item.Fields) >= 2 && item.Fields[1] != "" {
+			s.SetTitle(item.Fields[1], 3)
+		}
+		return ""
 	}
 
 	for _, cmd := range s.FrontendCommands {
@@ -535,45 +613,6 @@ func HandleCommandAction(s *core.State, item core.Item) string {
 	}
 
 	return ""
-}
-
-// IsInCommandScope returns true if the current scope is inside a `:` folder.
-func IsInCommandScope(s *core.State) bool {
-	ctx := s.TopCtx()
-	for _, level := range ctx.Scope[1:] {
-		if level.ParentIdx >= 0 && level.ParentIdx < len(ctx.AllItems) {
-			if len(ctx.AllItems[level.ParentIdx].Fields) > 0 && ctx.AllItems[level.ParentIdx].Fields[0] == ":" {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-// ScopeCtlTitle returns the appropriate title for the current scope.
-// Returns "" if not inside a `:` command folder, "fzt ctl" if inside `::`,
-// or "<frontendName> ctl" if inside the first `:`.
-func ScopeCtlTitle(s *core.State) string {
-	ctx := s.TopCtx()
-	colonDepth := 0
-	for _, level := range ctx.Scope[1:] {
-		if level.ParentIdx >= 0 && level.ParentIdx < len(ctx.AllItems) {
-			if len(ctx.AllItems[level.ParentIdx].Fields) > 0 && ctx.AllItems[level.ParentIdx].Fields[0] == ":" {
-				colonDepth++
-			}
-		}
-	}
-	if colonDepth == 0 {
-		return ""
-	}
-	if colonDepth >= 2 {
-		return "fzt ctl"
-	}
-	name := s.FrontendName
-	if name == "" {
-		name = "fzt"
-	}
-	return name + " ctl"
 }
 
 // ApplyConfig sets frontend identity and commands from Config onto State.
