@@ -15,7 +15,7 @@
     "@azure/cosmos": "^4.0.0",
     "@azure/identity": "^4.0.0",
     "@azure/keyvault-secrets": "^4.11.1",
-    "@nelsong6/fzt-frontend-routes": "file:../packages/routes",
+    "@nelsong6/fzt-frontend-routes": "^0.0.5",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",

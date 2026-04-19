@@ -2,11 +2,13 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# The backend consumes the routes package via `file:../packages/routes` —
-# copy both before npm install so the link resolves.
-COPY packages/routes packages/routes
 COPY backend/package*.json backend/
-RUN cd backend && npm install --omit=dev
+ARG NPM_TOKEN
+RUN cd backend && \
+    echo "//npm.pkg.github.com/:_authToken=${NPM_TOKEN}" > .npmrc && \
+    echo "@nelsong6:registry=https://npm.pkg.github.com" >> .npmrc && \
+    npm install --omit=dev && \
+    rm -f .npmrc
 
 COPY backend/ backend/
 
