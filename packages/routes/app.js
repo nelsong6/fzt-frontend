@@ -165,7 +165,16 @@ export function createFztFrontendRoutes({ requireAuth, container }) {
       }
       const latest = await getLatestTree(ns, name);
       if (!latest) {
-        return res.status(404).json({ error: 'Tree not found' });
+        // Fresh identity — no tree stored yet. Return an empty tree at
+        // version 0 so consumers can treat "never saved" as the zero state
+        // without branching on 404s. A subsequent PUT with baseVersion=0
+        // creates v1.
+        return res.json({
+          id: `${ns}/${name}`,
+          tree: [],
+          version: 0,
+          updatedAt: null,
+        });
       }
       const resolved = await resolveRefs(latest.tree);
       res.json({
