@@ -150,11 +150,16 @@ export function createFztFrontendRoutes({ requireAuth, container }) {
   function canRead(caller, ns) { return ns === caller || ns === 'shared'; }
   function canWrite(caller, ns) { return ns === caller || ns === 'shared'; }
 
+  // `me` is a client-side convenience — substitutes the caller's sub so the
+  // browser frontend can address its own trees without a whoami round-trip.
+  function resolveNs(rawNs, caller) { return rawNs === 'me' ? caller : rawNs; }
+
   // GET /tree/:ns/:name — read latest version + resolve refs
   router.get('/tree/:ns/:name', requireAuth, async (req, res) => {
     try {
-      const { ns, name } = req.params;
+      const { name } = req.params;
       const caller = req.user.sub;
+      const ns = resolveNs(req.params.ns, caller);
       if (!canRead(caller, ns)) {
         return res.status(403).json({ error: 'Forbidden' });
       }
@@ -178,8 +183,9 @@ export function createFztFrontendRoutes({ requireAuth, container }) {
   // PUT /tree/:ns/:name — create new version; body: { tree, baseVersion }
   router.put('/tree/:ns/:name', requireAuth, async (req, res) => {
     try {
-      const { ns, name } = req.params;
+      const { name } = req.params;
       const caller = req.user.sub;
+      const ns = resolveNs(req.params.ns, caller);
       if (!canWrite(caller, ns)) {
         return res.status(403).json({ error: 'Forbidden' });
       }
