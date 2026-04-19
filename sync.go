@@ -84,10 +84,10 @@ func StripMetadata(items []interface{}) []interface{} {
 	return out
 }
 
-// FetchTree GETs a tree from the /fzt/tree/:ns/:name endpoint.
+// FetchTree GETs a tree from the /fzt/tree/:id endpoint.
 // Returns (tree, version, updatedAt, error).
-func FetchTree(token, namespace, name string) ([]interface{}, int, string, error) {
-	url := fmt.Sprintf("%s/tree/%s/%s", APIBase, namespace, name)
+func FetchTree(token, treeID string) ([]interface{}, int, string, error) {
+	url := fmt.Sprintf("%s/tree/%s", APIBase, treeID)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, 0, "", err
@@ -126,10 +126,10 @@ func FetchTree(token, namespace, name string) ([]interface{}, int, string, error
 	return result.Tree, result.Version, updatedAt, nil
 }
 
-// SaveTree PUTs a tree to the /fzt/tree/:ns/:name endpoint.
+// SaveTree PUTs a tree to the /fzt/tree/:id endpoint.
 // Returns the new version number, or an error.
-func SaveTree(token, namespace, name string, tree []interface{}, baseVersion int) (int, error) {
-	url := fmt.Sprintf("%s/tree/%s/%s", APIBase, namespace, name)
+func SaveTree(token, treeID string, tree []interface{}, baseVersion int) (int, error) {
+	url := fmt.Sprintf("%s/tree/%s", APIBase, treeID)
 	body := map[string]interface{}{
 		"tree":        tree,
 		"baseVersion": baseVersion,
@@ -174,8 +174,15 @@ func SaveTree(token, namespace, name string, tree []interface{}, baseVersion int
 	return result.Version, nil
 }
 
+// MenuTreeID returns the tree id for the caller's menu: "<sub>-menu".
+// Personal trees use the "<identity>-<kind>" convention; shared trees
+// are flat names (e.g. "google").
+func MenuTreeID(sub string) string {
+	return sub + "-menu"
+}
+
 // SyncMenu fetches the caller's menu tree from the API and writes the cache
-// file as YAML. Thin wrapper over FetchTree(ns=claims.Sub, name="menu").
+// file as YAML. Thin wrapper over FetchTree(MenuTreeID(claims.Sub)).
 // Returns (item count, version number, error).
 func SyncMenu(configDir, secret string) (int, int, error) {
 	_, claims, err := LoadIdentityClaims(configDir)
@@ -184,7 +191,7 @@ func SyncMenu(configDir, secret string) (int, int, error) {
 	}
 
 	token := MintJWT(secret, claims)
-	menu, version, _, err := FetchTree(token, claims.Sub, "menu")
+	menu, version, _, err := FetchTree(token, MenuTreeID(claims.Sub))
 	if err != nil {
 		return 0, 0, fmt.Errorf("API error: %w", err)
 	}
@@ -206,7 +213,7 @@ func SyncMenu(configDir, secret string) (int, int, error) {
 }
 
 // SaveMenu PUTs the caller's menu tree and updates the local cache. Thin
-// wrapper over SaveTree(ns=claims.Sub, name="menu"). Returns the new version.
+// wrapper over SaveTree(MenuTreeID(claims.Sub)). Returns the new version.
 func SaveMenu(configDir, secret string, menu []interface{}, baseVersion int) (int, error) {
 	_, claims, err := LoadIdentityClaims(configDir)
 	if err != nil {
@@ -214,7 +221,7 @@ func SaveMenu(configDir, secret string, menu []interface{}, baseVersion int) (in
 	}
 
 	token := MintJWT(secret, claims)
-	version, err := SaveTree(token, claims.Sub, "menu", menu, baseVersion)
+	version, err := SaveTree(token, MenuTreeID(claims.Sub), menu, baseVersion)
 	if err != nil {
 		return 0, err
 	}
@@ -310,7 +317,7 @@ func CheckBookmarkStaleness(configDir string, secret string) bool {
 	}
 
 	token := MintJWT(secret, claims)
-	_, _, updatedAt, err := FetchTree(token, claims.Sub, "menu")
+	_, _, updatedAt, err := FetchTree(token, MenuTreeID(claims.Sub))
 	if err != nil {
 		return false
 	}
