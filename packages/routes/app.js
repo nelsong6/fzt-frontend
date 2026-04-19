@@ -13,13 +13,19 @@ import { Router } from 'express';
  * Doc schema:
  *   {
  *     id: `tree_<ns>_<name>_v<N>`,  // unique per version
- *     namespace: '<ns>',            // partition key (/namespace)
+ *     userId: '<partition>',        // /userId partition value (ns or "shared:<name>")
+ *     namespace: '<ns>',
  *     name: '<name>',
  *     type: 'tree',
  *     version: N,
  *     tree: [...],                  // the actual tree body
  *     updatedAt: ISO string
  *   }
+ *
+ * The container's partition key is `/userId` (legacy name from its pre-tree
+ * bookmarks era). Personal trees partition on the namespace itself;
+ * shared trees partition on `shared:<name>` so each shared tree gets its
+ * own partition rather than crowding a single `shared` one.
  *
  * Refs within a tree use the shape `{ ref: "<ns>/<name>" }`. The GET handler
  * recursively expands them (cycle-guarded, depth-limited), tagging resolved
@@ -37,13 +43,21 @@ export function createFztFrontendRoutes({ requireAuth, container }) {
 
   const MAX_REF_DEPTH = 10;
 
+  // The fzt-frontend-data container is partitioned on /userId — a legacy
+  // name from when it only held bookmarks. Trees keep using it: personal
+  // namespaces collapse to `userId = namespace`, shared trees get one
+  // partition per name (`userId = "shared:<name>"`) to avoid a hot
+  // single "shared" partition.
+  function partitionFor(namespace, name) {
+    return namespace === 'shared' ? `shared:${name}` : namespace;
+  }
+
   function versionDocId(namespace, name, version) {
-    // Cosmos IDs can't contain certain characters. Namespace comes from JWT
-    // sub which we allow a safe subset through; name is controlled by us.
     return `tree_${namespace}_${name}_v${version}`;
   }
 
   async function getLatestTree(namespace, name) {
+    const pk = partitionFor(namespace, name);
     const { resources } = await container.items.query({
       query: `SELECT TOP 1 * FROM c
               WHERE c.type = 'tree' AND c.namespace = @ns AND c.name = @name
@@ -52,7 +66,7 @@ export function createFztFrontendRoutes({ requireAuth, container }) {
         { name: '@ns', value: namespace },
         { name: '@name', value: name },
       ],
-    }, { partitionKey: namespace }).fetchAll();
+    }, { partitionKey: pk }).fetchAll();
     return resources[0] || null;
   }
 
@@ -191,6 +205,7 @@ export function createFztFrontendRoutes({ requireAuth, container }) {
 
       await container.items.create({
         id: versionDocId(ns, name, newVersion),
+        userId: partitionFor(ns, name),
         namespace: ns,
         name,
         type: 'tree',
