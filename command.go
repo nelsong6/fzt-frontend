@@ -27,6 +27,26 @@ func cmdAction(target string) *core.ItemAction {
 	return &core.ItemAction{Type: "command", Target: target}
 }
 
+// EditCommands returns the canonical `edit` submenu for frontends that edit
+// the current tree in place (add-after, add-folder, edit-item, delete,
+// save). Include it in your Config.FrontendCommands. Non-editors (e.g.
+// fzt-showcase) should omit it.
+//
+// Action strings are stable identifiers handled by HandleCommandAction and
+// tui key handlers. Renaming palette Names is safe; renaming Actions is not.
+func EditCommands() core.CommandItem {
+	return core.CommandItem{
+		Name: "edit", Description: "Edit tree in place",
+		Children: []core.CommandItem{
+			{Name: "add-after", Description: "Add item after cursor", Action: "add-after"},
+			{Name: "add-folder", Description: "Create folder at cursor", Action: "add-folder"},
+			{Name: "edit-item", Description: "Edit item properties", Action: "rename"},
+			{Name: "delete", Description: "Delete highlighted item", Action: "delete"},
+			{Name: "save", Description: "Save changes to cloud", Action: "save"},
+		},
+	}
+}
+
 // InjectCommandFolder appends the `:` command folder and its children to the
 // tree's AllItems. When a frontend is registered (FrontendName set), the first
 // level holds frontend commands and a nested `:` subfolder holds core commands.
