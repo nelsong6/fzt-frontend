@@ -15,7 +15,7 @@ import (
 	"time"
 )
 
-const APIBase = "https://api.romaine.life/fzt"
+const APIBase = "https://fzt-frontend.romaine.life/fzt"
 
 // IdentityClaims holds JWT payload claims for an identity.
 type IdentityClaims struct {
