@@ -50,9 +50,12 @@ jobs:
           echo "TAG=${TAG}" >> $GITHUB_ENV
 
       - name: Install kustomize
+        # Pinned direct download — the upstream install script hits the
+        # GitHub API (unauthenticated → 60/hr rate limit) which intermittently
+        # returns garbage, breaking the tarball extract.
         run: |
-          curl -sSL "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
-          sudo mv kustomize /usr/local/bin/
+          KUSTOMIZE_VERSION=v5.7.2
+          curl -sSL "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2F${KUSTOMIZE_VERSION}/kustomize_${KUSTOMIZE_VERSION}_linux_amd64.tar.gz" | sudo tar -xz -C /usr/local/bin/
 
       - name: Bump image tag in k8s/kustomization.yaml
         working-directory: k8s
