@@ -1,9 +1,9 @@
 name: Dependency Update
 
-# Auto-trigger disabled — Claude-driven CI. `repository_dispatch` from
-# upstream fzt releases is ignored. Run manually via
+# Auto-trigger disabled — Claude-driven CI. Run manually via
 # `gh workflow run dispatch.yml -R nelsong6/fzt-frontend` when ready
-# to bump go.mod + cut release + cascade downstream.
+# to bump go.mod + cut a release. Downstream consumers are updated
+# manually per repo.
 on:
   workflow_dispatch:
 
@@ -26,8 +26,6 @@ jobs:
     uses: nelsong6/pipeline-templates/.github/workflows/go-dependency-update-template.yml@main
     with:
       modules: github.com/nelsong6/fzt
-      # With dispatch-repos set, the template handles bump + commit + push +
-      # cut release + notify consumers in one atomic job. Replaces the old
-      # separate Tag + Dispatch workflow (removed).
-      dispatch-repos: fzt-terminal,fzt-automate,fzt-browser,fzt-picker
-      dispatch-event: fzt-updated
+      # Template handles bump + commit + push + cut release in one atomic
+      # job. Downstream (fzt-terminal, fzt-automate, fzt-browser, fzt-
+      # picker) is Claude-driven — no repository_dispatch fan-out.
