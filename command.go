@@ -125,6 +125,13 @@ func InjectCommandFolder(s *core.State, coreVersion string) {
 	for i := range items {
 		items[i].Injected = true
 	}
+	// When the consumer opts into HidePalette, mark the `:` root folder
+	// Hidden so it doesn't render as a row. Children remain searchable;
+	// typing `:` still gives the takeover view of the palette commands.
+	// items[0] is always the ctlFolder in both build paths.
+	if s.HidePalette && len(items) > 0 {
+		items[0].Hidden = true
+	}
 	ctx.AllItems = append(ctx.AllItems, items...)
 	ctx.Items = core.RootItemsOf(ctx.AllItems)
 }
@@ -639,4 +646,5 @@ func ApplyConfig(s *core.State, cfg core.Config) {
 	if cfg.UpdateBinaryName != "" {
 		s.UpdateBinaryName = cfg.UpdateBinaryName
 	}
+	s.HidePalette = cfg.HidePalette
 }
