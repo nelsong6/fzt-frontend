@@ -119,18 +119,19 @@ func InjectCommandFolder(s *core.State, coreVersion string) {
 		items = buildCoreLevelCommandTree(s.VersionRegistry, ctlFolderIdx, 0, s.EnvTags) // coreIdx=0
 	}
 
+	// When the consumer opts into HidePalette, skip injection entirely.
+	// The palette doesn't exist in this session — no `:` row at root AND
+	// typing `:` won't reach any palette commands (since the items aren't
+	// in AllItems for the search to find). VersionRegistry was still
+	// built above in case some other path reads it; harmless.
+	if s.HidePalette {
+		return
+	}
 	// Tag every injected item so SerializeTree skips them on :save. The
 	// cloud menu only ever receives user data; the palette is always
 	// client-reconstructed.
 	for i := range items {
 		items[i].Injected = true
-	}
-	// When the consumer opts into HidePalette, mark the `:` root folder
-	// Hidden so it doesn't render as a row. Children remain searchable;
-	// typing `:` still gives the takeover view of the palette commands.
-	// items[0] is always the ctlFolder in both build paths.
-	if s.HidePalette && len(items) > 0 {
-		items[0].Hidden = true
 	}
 	ctx.AllItems = append(ctx.AllItems, items...)
 	ctx.Items = core.RootItemsOf(ctx.AllItems)
