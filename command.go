@@ -525,11 +525,8 @@ func HandleCommandAction(s *core.State, item core.Item) string {
 		return "unloaded"
 	case "sync":
 		if s.ConfigDir == "" {
-			// Browser context — ConfigDir is a terminal concern (menu-cache.yaml
-			// on disk). Return the action unchanged so the frontend-registered
-			// handler downstream (e.g. homepage's in-tab re-fetch) can run
-			// instead of the filesystem-backed sync this case implements.
-			return "sync"
+			s.SetTitle("no config directory set", 2)
+			return ""
 		}
 		secret := s.JWTSecret
 		if secret == "" {
