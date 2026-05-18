@@ -25,7 +25,7 @@ resource "azurerm_user_assigned_identity" "fzt_frontend" {
 
 import {
   to = azurerm_user_assigned_identity.fzt_frontend
-  id = "/subscriptions/aee0cbd2-8074-4001-b610-0f8edb4eaa3c/resourcegroups/infra/providers/Microsoft.ManagedIdentity/userAssignedIdentities/fzt-frontend-identity"
+  id = "/subscriptions/aee0cbd2-8074-4001-b610-0f8edb4eaa3c/resourceGroups/infra/providers/Microsoft.ManagedIdentity/userAssignedIdentities/fzt-frontend-identity"
 }
 
 # ----------------------------------------------------------------------------
@@ -93,7 +93,7 @@ resource "azurerm_federated_identity_credential" "fzt_frontend" {
 
 import {
   to = azurerm_federated_identity_credential.fzt_frontend
-  id = "/subscriptions/aee0cbd2-8074-4001-b610-0f8edb4eaa3c/resourcegroups/infra/providers/Microsoft.ManagedIdentity/userAssignedIdentities/fzt-frontend-identity/federatedIdentityCredentials/aks-cluster-fzt-frontend"
+  id = "/subscriptions/aee0cbd2-8074-4001-b610-0f8edb4eaa3c/resourceGroups/infra/providers/Microsoft.ManagedIdentity/userAssignedIdentities/fzt-frontend-identity/federatedIdentityCredentials/aks-cluster-fzt-frontend"
 }
 
 output "fzt_frontend_identity_client_id" {
